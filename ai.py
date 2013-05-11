@@ -7,7 +7,7 @@ HEIGHT = 5
 HUMAN='human'
 AI='ai'
 infinity = 1.0e400
-
+DIFFICULITY=10
 
 
 def if_(test, result, alternative):
@@ -39,7 +39,8 @@ def random_player(game, state):
 
 def alphabeta_player(game, state):
     move,s=alphabeta_search(state, game)
-    print s
+    print 'alphabeta player:',move
+    print 'and statistics:',s
     return move
 
 def play_game(game, *players):
@@ -56,7 +57,7 @@ def play_game(game, *players):
                 print 'illegal move, aborting'
                 return 
             if game.terminal_test(state):
-                print '%s wins'% player.__name__
+                print '%s with %s wins'% (player.__name__,if_(state.to_move=='  X ','O','X'))
                 game.display(state)
                 return game.utility(state, game.to_move(game.initial))
 
@@ -109,12 +110,12 @@ class Game:
 
 
 
-def alphabeta_search(state, game, d=4, cutoff_test=None, eval_fn=None):
+def alphabeta_search(state, game, d=DIFFICULITY, cutoff_test=None, eval_fn=None):
     """Search game to determine best action; use alpha-beta pruning.
     This version cuts off search and uses an evaluation function."""
 
     player = game.to_move(state)
-    s={'depth':d,'nodes':1,'max_cuting_off_counter':0,'min_cuting_off_counter':0}
+    s={'depth':d,'nodes':1,'max_cuting_off_counter':0,'min_cuting_off_counter':0,'utility':0}
 
     def max_value(state, alpha, beta, depth,s):
         s['depth']=depth
@@ -129,6 +130,7 @@ def alphabeta_search(state, game, d=4, cutoff_test=None, eval_fn=None):
             if v >= beta:
                 return v
             alpha = max(alpha, v)
+        s['utility']=v    
         return v
 
     def min_value(state, alpha, beta, depth,s):
@@ -144,6 +146,7 @@ def alphabeta_search(state, game, d=4, cutoff_test=None, eval_fn=None):
             if v <= alpha:
                 return v
             beta = min(beta, v)
+        s['utility']=v
         return v
 
     # Body of alphabeta_search starts here:
@@ -185,7 +188,7 @@ class C4(Game):
     def __init__(self):
         board = make_board()
         self.initial = Struct(to_move='  X ',utility=0,board=board)    
-        self.k=4
+        self.k=4#k in a row
 
     def actions(self,state,player):
         actions=[]
@@ -229,13 +232,14 @@ class C4(Game):
                 print board[x][y],'|',
             print '\n---------------------------'    
             
+
     def utility(self, state, player):
         "Return the value to player; 1 for win, -1 for loss, 0 otherwise."
         return if_(player == 'X', state.utility, -state.utility)
 
     def terminal_test(self, state):
         "A state is terminal if it is won or there are no empty squares."
-        return state.utility == self.k or len(self.actions(state,state.to_move)) == 0
+        return state.utility != 0 or len(self.actions(state,state.to_move)) == 0
 
 
 
@@ -244,20 +248,21 @@ class C4(Game):
 
         if move[0]=='add':
             move=(move[1],len(board[move[1]])-1)
-            return max(self.k_in_row(board, move, player, (0, 1)),
-                       self.k_in_row(board, move, player, (1, 0)),
-                       self.k_in_row(board, move, player, (1, -1)),
-                       self.k_in_row(board, move, player, (1, 1)))
+            if (self.k_in_row(board, move, player, (0, 1)) or
+                self.k_in_row(board, move, player, (1, 0)) or
+                self.k_in_row(board, move, player, (1, -1)) or
+                self.k_in_row(board, move, player, (1, 1))):
+                return if_(player == '  X ', +1, -1)
         else:
             moves=[(move[1],y) for y in range(1, len(board[move[1]])-1)]
             max_value=-infinity
             for move in moves:
-                max_value= max(self.k_in_row(board, move, player, (0, 1)),
-                       self.k_in_row(board, move, player, (1, 0)),
-                       self.k_in_row(board, move, player, (1, -1)),
-                       self.k_in_row(board, move, player, (1, 1)),
-                       max_value)
-            return max_value
+                if (self.k_in_row(board, move, player, (0, 1)) or
+                    self.k_in_row(board, move, player, (1, 0)) or
+                    self.k_in_row(board, move, player, (1, -1)) or
+                    self.k_in_row(board, move, player, (1, 1))):
+                    return if_(player == '  X ', +1, -1)
+        return 0
 
 
     def k_in_row(self, board,move,player, (delta_x, delta_y)):
@@ -286,11 +291,13 @@ class C4(Game):
                 break
 
         n -= 1 # Because we counted move itself twice
-
-        return n 
+#        if n>=self.k:
+#            print 'chance to win?',move,board
+            
+        return n>=self.k 
 
 
 if __name__ == '__main__':
-    play_game(C4(), query_player, alphabeta_player)
+    play_game(C4(),query_player, query_player)
 
 

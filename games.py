@@ -7,7 +7,7 @@ import pdb
 
 
 
-def alphabeta_search(state, game, d=4, cutoff_test=None, eval_fn=None):
+def alphabeta_search(state, game, d=7, cutoff_test=None, eval_fn=None):
     """Search game to determine best action; use alpha-beta pruning.
     This version cuts off search and uses an evaluation function."""
 
@@ -158,7 +158,7 @@ class TicTacToe(Game):
 
     def terminal_test(self, state):
         "A state is terminal if it is won or there are no empty squares."
-        return state.utility != 0 or len(state.moves) == 0
+
 
     def display(self, state):
         board = state.board
