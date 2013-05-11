@@ -1,7 +1,7 @@
 #-*- coding:utf-8-*-
 import pprint
 from copy import deepcopy
-
+import pdb
 WIDTH = 4
 HEIGHT = 5
 HUMAN='human'
@@ -28,18 +28,19 @@ def if_(test, result, alternative):
 def query_player(game, state):
     "Make a move by querying standard input."
     game.display(state)
-    x = num_or_str(raw_input('Your move? '))
-    print 'query player move at',x
-    return x
+    x,y =raw_input('Your move? ').split(',')
+    x,y=str(x),int(y)
+#    print 'query player move at',x
+    return (x,y)
 
 def random_player(game, state):
     "A player that chooses a legal move at random."
     return random.choice(game.actions(state))
 
 def alphabeta_player(game, state):
-    x=alphabeta_search(state, game)
-    print 'alpha beta player:',x
-    return x
+    move,statistics=alphabeta_search(state, game)[0]
+    pprint.pprint(statistics)
+    return move
 
 def play_game(game, *players):
     """Play an n-person, move-alternating game.
@@ -51,8 +52,13 @@ def play_game(game, *players):
         for player in players:
             move = player(game, state)
             print 'MOVEING',move
-            state = game.result(state, move)
+            state,flag = game.result(state, move)
+            if not flag:
+                print 'illegal move, aborting'
+                return 
             if game.terminal_test(state):
+                print '%s wins'% player.__name__
+                game.display(state)
                 return game.utility(state, game.to_move(game.initial))
 
 class Struct:
@@ -109,13 +115,16 @@ def alphabeta_search(state, game, d=4, cutoff_test=None, eval_fn=None):
     This version cuts off search and uses an evaluation function."""
 
     player = game.to_move(state)
+    s={'depth':0,'nodes':1,'max_cuting_off_counter':0,'min_cuting_off_counter':0}
 
     def max_value(state, alpha, beta, depth):
         if cutoff_test(state, depth):
+            s['max_cuting_off_counter']+=1
             return eval_fn(state)
         v = -infinity
         for a in game.actions(state,player):
-            v = max(v, min_value(game.result(state, a),
+            s['nodes']+=len(a)
+            v = max(v, min_value(game.result(state, a)[0],
                                  alpha, beta, depth+1))
             if v >= beta:
                 return v
@@ -124,10 +133,12 @@ def alphabeta_search(state, game, d=4, cutoff_test=None, eval_fn=None):
 
     def min_value(state, alpha, beta, depth):
         if cutoff_test(state, depth):
+            s['min_cuting_off_counter']+=1
             return eval_fn(state)
         v = infinity
         for a in game.actions(state,player):
-            v = min(v, max_value(game.result(state, a),
+            s['nodes']+=len(a)
+            v = min(v, max_value(game.result(state, a)[0],
                                  alpha, beta, depth+1))
             if v <= alpha:
                 return v
@@ -140,8 +151,8 @@ def alphabeta_search(state, game, d=4, cutoff_test=None, eval_fn=None):
                    (lambda state,depth: depth>d or game.terminal_test(state)))
     eval_fn = eval_fn or (lambda state: game.utility(state, player))
     return argmax(game.actions(state,state.to_move),
-                  lambda a: min_value(game.result(state, a),
-                                      -infinity, infinity, 0))
+                  lambda a: min_value(game.result(state, a)[0],
+                                      -infinity, infinity, 0)),s
 
 def argmax(seq, fn):
     """Return an element with highest fn(seq[i]) score; tie goes to first one.
@@ -172,7 +183,7 @@ def make_board():
 class C4(Game):
     def __init__(self):
         board = make_board()
-        self.initial = Struct(to_move='X',utility=0,board=board)    
+        self.initial = Struct(to_move='  X ',utility=0,board=board)    
         self.k=4
 
     def actions(self,state,player):
@@ -182,7 +193,8 @@ class C4(Game):
                 actions.append(('add',i))
         for j in range(0,WIDTH):
             try:
-                if state.board[j][1] == player:
+#                print player==state.board[j][1]
+                if state.board[j][0] == player:
                     actions.append(('remove',j))
             except:
                 pass
@@ -190,32 +202,20 @@ class C4(Game):
 
 
     def result(self,state, move):
+        print 'wtf',self.actions(state,state.to_move)
         if move not in self.actions(state,state.to_move):
-            return state #illegal move has no effect
+            return state,False #illegal move has no effect
         board = deepcopy(state.board)
         if move[0]=='add':
             board[move[1]].append(state.to_move)
         else:
             board[move[1]].pop(0)
-        return Struct(to_move=if_(state.to_move == 'X', 'O', 'X'),
-                      utility=self.compute_utility(board, move, state.to_move),board=board)
+        return Struct(to_move=if_(state.to_move == '  X ', '  O ', '  X '),
+                      utility=self.compute_utility(board, move, state.to_move),board=board),True
 
 
-
-    def make_move(board,player,move):
-        if move[0] == 'remove':
-            if board[move[1]][0] == player:
-                board[move[1]].remove(player)
-            else:
-                print 'something is wrong'
-        if type == 'add':
-            if len(board[move[1]]) < HEIGHT:
-                board[move[1]].append(player)
-            else:
-                print 'something is wrong'
-
-    def display(self):
-        board=deepcopy(self.state)
+    def display(self,state):
+        board=deepcopy(state.board)
         for y in range(0,HEIGHT):
             for x in range(0,WIDTH):
                 try:
@@ -234,29 +234,62 @@ class C4(Game):
 
     def terminal_test(self, state):
         "A state is terminal if it is won or there are no empty squares."
-        return state.utility != 0 or len(game.actions(state.to_move)) == 0
+        return state.utility == self.k or len(self.actions(state,state.to_move)) == 0
 
 
 
-    def compute_utility(self, board, player):
+    def compute_utility(self, board,move, player):
         "If player has k in a row return k"
 
+        if move[0]=='add':
+            move=(move[1],len(board[move[1]])-1)
+            return max(self.k_in_row(board, move, player, (0, 1)),
+                       self.k_in_row(board, move, player, (1, 0)),
+                       self.k_in_row(board, move, player, (1, -1)),
+                       self.k_in_row(board, move, player, (1, 1)))
+        else:
+            moves=[(move[1],y) for y in range(1, len(board[move[1]])-1)]
+            max_value=-infinity
+            for move in moves:
+                max_value= max(self.k_in_row(board, move, player, (0, 1)),
+                       self.k_in_row(board, move, player, (1, 0)),
+                       self.k_in_row(board, move, player, (1, -1)),
+                       self.k_in_row(board, move, player, (1, 1)),
+                       max_value)
+            return max_value
 
-    def k_in_row(self, board,player, (delta_x, delta_y)):
+
+    def k_in_row(self, board,move,player, (delta_x, delta_y)):
         "Return true if there is a line through move on board for player."
-        n = 0 # n is number of moves in row
-        while board[(x, y)] == player:
+
+        x,y= move
+        n = 0 # n is number of chesses in row
+        while board[x][y] == player:
             n += 1
             x, y = x + delta_x, y + delta_y
+            try:
+                board[x][y]
+            except:
+#                print 'n break',n
+                break
+#        print 'n x',n    
         x, y = move
-        while board[(x, y)] == player:
+        while board[x][y] == player:
             n += 1
+            if y==0:
+                break
             x, y = x - delta_x, y - delta_y
+            try:
+                board[x][y]
+            except:
+                break
+
         n -= 1 # Because we counted move itself twice
+
         return n 
 
 
 if __name__ == '__main__':
-    play_game(C4(), alphabeta_player, query_player)
+    play_game(C4(), query_player, alphabeta_player)
 
 

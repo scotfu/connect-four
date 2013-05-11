@@ -53,9 +53,10 @@ def alphabeta_search(state, game, d=4, cutoff_test=None, eval_fn=None):
 def query_player(game, state):
     "Make a move by querying standard input."
     game.display(state)
-    x = num_or_str(raw_input('Your move? '))
+    x,y =raw_input('Your move? ').split(',')
+    x,y=int(x),int(y)
     print 'query player move at',x
-    return x
+    return (x,y)
 
 def random_player(game, state):
     "A player that chooses a legal move at random."
@@ -77,6 +78,7 @@ def play_game(game, *players):
             print 'MOVEING',move
             state = game.result(state, move)
             if game.terminal_test(state):
+                print '%s wins'% player.__name__
                 return game.utility(state, game.to_move(game.initial))
 
 #______________________________________________________________________________
