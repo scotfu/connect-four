@@ -38,8 +38,8 @@ def random_player(game, state):
     return random.choice(game.actions(state))
 
 def alphabeta_player(game, state):
-    move,statistics=alphabeta_search(state, game)[0]
-    pprint.pprint(statistics)
+    move,s=alphabeta_search(state, game)
+    print s
     return move
 
 def play_game(game, *players):
@@ -51,7 +51,6 @@ def play_game(game, *players):
     while True:
         for player in players:
             move = player(game, state)
-            print 'MOVEING',move
             state,flag = game.result(state, move)
             if not flag:
                 print 'illegal move, aborting'
@@ -115,9 +114,10 @@ def alphabeta_search(state, game, d=4, cutoff_test=None, eval_fn=None):
     This version cuts off search and uses an evaluation function."""
 
     player = game.to_move(state)
-    s={'depth':0,'nodes':1,'max_cuting_off_counter':0,'min_cuting_off_counter':0}
+    s={'depth':d,'nodes':1,'max_cuting_off_counter':0,'min_cuting_off_counter':0}
 
-    def max_value(state, alpha, beta, depth):
+    def max_value(state, alpha, beta, depth,s):
+        s['depth']=depth
         if cutoff_test(state, depth):
             s['max_cuting_off_counter']+=1
             return eval_fn(state)
@@ -125,13 +125,14 @@ def alphabeta_search(state, game, d=4, cutoff_test=None, eval_fn=None):
         for a in game.actions(state,player):
             s['nodes']+=len(a)
             v = max(v, min_value(game.result(state, a)[0],
-                                 alpha, beta, depth+1))
+                                 alpha, beta, depth+1,s))
             if v >= beta:
                 return v
             alpha = max(alpha, v)
         return v
 
-    def min_value(state, alpha, beta, depth):
+    def min_value(state, alpha, beta, depth,s):
+        s['depth']=depth
         if cutoff_test(state, depth):
             s['min_cuting_off_counter']+=1
             return eval_fn(state)
@@ -139,7 +140,7 @@ def alphabeta_search(state, game, d=4, cutoff_test=None, eval_fn=None):
         for a in game.actions(state,player):
             s['nodes']+=len(a)
             v = min(v, max_value(game.result(state, a)[0],
-                                 alpha, beta, depth+1))
+                                 alpha, beta, depth+1,s))
             if v <= alpha:
                 return v
             beta = min(beta, v)
@@ -148,11 +149,11 @@ def alphabeta_search(state, game, d=4, cutoff_test=None, eval_fn=None):
     # Body of alphabeta_search starts here:
     # The default test cuts off at depth d or at a terminal state
     cutoff_test = (cutoff_test or
-                   (lambda state,depth: depth>d or game.terminal_test(state)))
+                   (lambda state,depth: depth>=d or game.terminal_test(state)))
     eval_fn = eval_fn or (lambda state: game.utility(state, player))
     return argmax(game.actions(state,state.to_move),
                   lambda a: min_value(game.result(state, a)[0],
-                                      -infinity, infinity, 0)),s
+                                      -infinity, infinity, 0,s)),s
 
 def argmax(seq, fn):
     """Return an element with highest fn(seq[i]) score; tie goes to first one.
@@ -202,7 +203,7 @@ class C4(Game):
 
 
     def result(self,state, move):
-        print 'wtf',self.actions(state,state.to_move)
+#        print move,self.actions(state,state.to_move) ,move not in self.actions(state,state.to_move)
         if move not in self.actions(state,state.to_move):
             return state,False #illegal move has no effect
         board = deepcopy(state.board)
