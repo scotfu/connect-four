@@ -49,12 +49,11 @@ def alphabeta_player(game, state):
     move,s=alphabeta_search(state, game)
     print 'alphabeta player:',move
     print 'and statistics:',s
-#    print 'utility of this move:',state.utility
     return move
 
 def play_game(game, *players):
     """Play an n-person, move-alternating game.
-    >>> play_game(Fig52Game(), alphabeta_player, alphabeta_player)
+    >>> play_game(C4(), alphabeta_player, alphabeta_player)
     3
     """
     state = game.initial
@@ -143,7 +142,6 @@ def alphabeta_search(state, game, d=DIFFICULITY, cutoff_test=None, eval_fn=None)
             if v >= beta:
                 return v
             alpha = max(alpha, v)
-#        s['utility']=v    
         return v
 
     def min_value(state, alpha, beta, depth,s):
@@ -159,7 +157,6 @@ def alphabeta_search(state, game, d=DIFFICULITY, cutoff_test=None, eval_fn=None)
             if v <= alpha:
                 return v
             beta = min(beta, v)
-#        s['utility']=v
         return v
 
     # Body of alphabeta_search starts here:
@@ -294,9 +291,9 @@ class C4(Game):
             try:
                 board[x][y]
             except:
-#                print 'n break',n
+
                 break
-#        print 'n x',n    
+
         x, y = move
         while board[x][y] == player:
             n += 1
@@ -309,8 +306,6 @@ class C4(Game):
                 break
 
         n -= 1 # Because we counted move itself twice
-#        if n>=self.k:
-#            print 'chance to win?',move,board
             
         return n>=self.k
 
