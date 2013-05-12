@@ -8,7 +8,7 @@ HEIGHT = 5
 PLAYER_1='  X '
 PLAYER_2='  O '
 infinity = 1.0e400
-DIFFICULITY=2
+DIFFICULITY=6
 
 
 def if_(test, result, alternative):
@@ -127,12 +127,12 @@ def alphabeta_search(state, game, d=DIFFICULITY, cutoff_test=None, eval_fn=None)
     This version cuts off search and uses an evaluation function."""
 #    pdb.set_trace()
     player = game.to_move(state)
-    s={'depth':d,'nodes':1,'max_cuting_off_counter':0,'min_cuting_off_counter':0}
+    s={'depth':d,'nodes':1,'max_pruning_counter':0,'min_pruning_counter':0}
 
     def max_value(state, alpha, beta, depth,s):
         s['depth']=depth
         if cutoff_test(state, depth):
-            s['max_cuting_off_counter']+=1
+
             return eval_fn(state)
         v = -infinity
         for a in game.actions(state,player):
@@ -140,6 +140,7 @@ def alphabeta_search(state, game, d=DIFFICULITY, cutoff_test=None, eval_fn=None)
             v = max(v, min_value(game.result(state, a)[0],
                                  alpha, beta, depth+1,s))
             if v >= beta:
+                s['max_pruning_counter']+=1
                 return v
             alpha = max(alpha, v)
         return v
@@ -147,7 +148,6 @@ def alphabeta_search(state, game, d=DIFFICULITY, cutoff_test=None, eval_fn=None)
     def min_value(state, alpha, beta, depth,s):
         s['depth']=depth
         if cutoff_test(state, depth):
-            s['min_cuting_off_counter']+=1
             return eval_fn(state)
         v = infinity
         for a in game.actions(state,player):
@@ -155,6 +155,7 @@ def alphabeta_search(state, game, d=DIFFICULITY, cutoff_test=None, eval_fn=None)
             v = min(v, max_value(game.result(state, a)[0],
                                  alpha, beta, depth+1,s))
             if v <= alpha:
+                s['min_pruning_counter']+=1
                 return v
             beta = min(beta, v)
         return v
@@ -166,7 +167,7 @@ def alphabeta_search(state, game, d=DIFFICULITY, cutoff_test=None, eval_fn=None)
     eval_fn = eval_fn or (lambda state: game.utility(state, player))
     return argmax(game.actions(state,state.to_move),
                   lambda a: min_value(game.result(state, a)[0],
-                                      -infinity, infinity, 0,s)),s
+                                      -infinity, infinity, 1,s)),s
 
 def argmax(seq, fn):
     """Return an element with highest fn(seq[i]) score; tie goes to first one.
@@ -311,6 +312,6 @@ class C4(Game):
 
 
 if __name__ == '__main__':
-    play_game(C4(),alphabeta_player, query_player)
+    play_game(C4(), query_player,alphabeta_player)
 
 
